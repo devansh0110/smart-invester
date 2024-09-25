@@ -32,6 +32,9 @@ export class SIPCalculatorDto {
 
   @IsNumber()
   shortTermCapitalGain: number; // Short-term capital gain tax in percentage
+
+  @IsNumber()
+  inflationRate: number; // New field for inflation rate
 }
 
 // src/dto/sip-calculator-output.dto.ts
@@ -49,10 +52,14 @@ export class TaxApplicable {
 }
 
 export class SIPCalculatorOutputDto {
-  totalInvestedAmount: number;
+  totalInvestedAmount: number; // Gross total invested amount (before expenses)
+  netInvestedAmount: number; // Total invested amount after deducting expenses
   totalGain: number;
   totalAccumulated: number;
   totalExpenses: number;
   taxApplicable: TaxApplicable;
   monthlyBalanceSheet: MonthlyBalance[];
+  inflationAdjustedAccumulated: number; // Inflation-adjusted accumulated amount
+  corpusAfterTax;
+  inflationAdjustedCorpusAfterTax;
 }

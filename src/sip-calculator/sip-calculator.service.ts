@@ -20,38 +20,42 @@ export class SipCalculatorService {
       expenseRatio,
       longTermCapitalGain,
       shortTermCapitalGain,
+      inflationRate,
     } = sipCalculatorDto;
 
     const frequencyMultiplier = this.getFrequencyMultiplier(sipFrequency);
     const totalInstallments = timePeriod * frequencyMultiplier;
-    const monthlyRate = expectedReturn / 12 / 100; // Monthly expected return rate
+    const monthlyRate = expectedReturn / 12 / 100; // Convert annual return to monthly decimal
 
-    let totalInvestedAmount = 0;
+    let totalInvestedAmount = 0; // Total amount invested before expenses
+    let netInvestedAmount = 0; // Total amount invested after deducting expenses
     let totalGain = 0;
     let totalExpenses = 0;
     const monthlyBalances: MonthlyBalance[] = [];
 
     for (let i = 1; i <= totalInstallments; i++) {
-      const installment =
-        sipAmount *
-        (1 + yearlyStepup / 100) ** Math.floor(i / frequencyMultiplier);
-      totalInvestedAmount += installment;
+      const year = Math.floor((i - 1) / frequencyMultiplier); // Zero-based year index
+      const installment = sipAmount * Math.pow(1 + yearlyStepup / 100, year); // Apply step-up annually
+      const expense = installment * (expenseRatio / 100); // Upfront expense on each installment
+      const netInstallment = installment - expense; // Installment after deducting expense
+
+      totalInvestedAmount += installment; // Accumulate gross installment
+      netInvestedAmount += netInstallment; // Accumulate net installment
+      totalExpenses += expense; // Accumulate expenses
 
       const prevBalance = i > 1 ? monthlyBalances[i - 2].accumulated : 0;
       const currentMonthGain = prevBalance * monthlyRate;
-      const currentAccumulated = prevBalance + installment + currentMonthGain;
-
-      const currentMonthExpense =
-        currentAccumulated * (expenseRatio / 100 / 12);
-      totalExpenses += currentMonthExpense;
+      const currentAccumulated =
+        prevBalance + netInstallment + currentMonthGain;
 
       totalGain += currentMonthGain;
+
       monthlyBalances.push({
         month: i,
-        installment,
+        installment: netInstallment,
         gain: currentMonthGain,
-        accumulated: currentAccumulated - currentMonthExpense,
-        expenses: currentMonthExpense,
+        accumulated: currentAccumulated,
+        expenses: expense,
       });
     }
 
@@ -62,12 +66,34 @@ export class SipCalculatorService {
       timePeriod,
     );
 
+    const totalAccumulated = netInvestedAmount + totalGain;
+
+    // Calculate inflation-adjusted accumulated amount
+    const inflationAdjustedAccumulated = this.calculateInflationAdjustedAmount(
+      totalAccumulated,
+      inflationRate,
+      timePeriod,
+    );
+
+    const corpusAfterTax =
+      totalAccumulated - taxApplicable.longTermTax - taxApplicable.shortTermTax;
+
+    const inflationAdjustedCorpusAfterTax =
+      this.calculateInflationAdjustedAmount(
+        corpusAfterTax,
+        inflationRate,
+        timePeriod,
+      );
     return {
       totalInvestedAmount,
-      totalGain: totalGain - totalExpenses,
-      totalAccumulated: totalInvestedAmount + totalGain - totalExpenses,
       totalExpenses,
+      netInvestedAmount, // Include net invested amount
+      totalGain,
+      totalAccumulated,
+      inflationAdjustedAccumulated,
       taxApplicable,
+      corpusAfterTax,
+      inflationAdjustedCorpusAfterTax,
       monthlyBalanceSheet: monthlyBalances,
     };
   }
@@ -91,11 +117,12 @@ export class SipCalculatorService {
     shortTermCapitalGain: number,
     timePeriod: number,
   ): TaxApplicable {
-    // Assuming long-term gain applies after 1 year
+    // Calculate long-term tax if investment period is more than 1 year
     const longTermTax =
       (totalGain *
         (timePeriod > 1 ? longTermCapitalGain : shortTermCapitalGain)) /
       100;
+    // Calculate short-term tax if investment period is 1 year or less
     const shortTermTax =
       timePeriod <= 1 ? (totalGain * shortTermCapitalGain) / 100 : 0;
 
@@ -103,5 +130,14 @@ export class SipCalculatorService {
       longTermTax,
       shortTermTax,
     };
+  }
+
+  private calculateInflationAdjustedAmount(
+    accumulatedAmount: number,
+    inflationRate: number,
+    timePeriod: number,
+  ): number {
+    // Adjust the accumulated amount for inflation over the investment period
+    return accumulatedAmount / Math.pow(1 + inflationRate / 100, timePeriod);
   }
 }

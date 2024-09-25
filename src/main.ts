@@ -12,6 +12,6 @@ async function bootstrap() {
       transform: true, // Automatically transforms payloads to be objects typed according to their DTO classes
     }),
   );
-  await app.listen(3000);
+  await app.listen(80);
 }
 bootstrap();
