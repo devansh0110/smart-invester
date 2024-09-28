@@ -13,6 +13,7 @@ export class SipCalculatorController {
   calculateSIP(
     @Body() sipCalculatorDto: SIPCalculatorDto,
   ): SIPCalculatorOutputDto {
+    console.log('sipCalculatorDto', sipCalculatorDto);
     return this.sipCalculatorService.calculateSIP(sipCalculatorDto);
   }
 }
