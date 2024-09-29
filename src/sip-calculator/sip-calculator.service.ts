@@ -1,5 +1,6 @@
 // src/sip-calculator/sip-calculator.service.ts
 import { Injectable } from '@nestjs/common';
+import * as moment from 'moment';
 import {
   Frequency,
   MonthlyBalance,
@@ -32,8 +33,9 @@ export class SipCalculatorService {
     let totalGain = 0;
     let totalExpenses = 0;
     const monthlyBalances: MonthlyBalance[] = [];
-
+    const currentMonth = moment();
     for (let i = 1; i <= totalInstallments; i++) {
+      currentMonth.add(1, 'months');
       const year = Math.floor((i - 1) / frequencyMultiplier); // Zero-based year index
       const installment = sipAmount * Math.pow(1 + yearlyStepup / 100, year); // Apply step-up annually
       const expense = installment * (expenseRatio / 100); // Upfront expense on each installment
@@ -43,7 +45,8 @@ export class SipCalculatorService {
       netInvestedAmount += netInstallment; // Accumulate net installment
       totalExpenses += expense; // Accumulate expenses
 
-      const prevBalance = i > 1 ? monthlyBalances[i - 2].accumulated : 0;
+      const prevBalance =
+        i > 1 ? monthlyBalances[i - 2].cumulativeAccumulated : 0;
       const currentMonthGain = prevBalance * monthlyRate;
       const currentAccumulated =
         prevBalance + netInstallment + currentMonthGain;
@@ -51,11 +54,12 @@ export class SipCalculatorService {
       totalGain += currentMonthGain;
 
       monthlyBalances.push({
-        month: i,
-        installment: netInstallment,
-        gain: currentMonthGain,
-        accumulated: currentAccumulated,
-        expenses: expense,
+        month: currentMonth.format('MMM YY'),
+        monthIndex: i,
+        currentMonthInstallment: Math.round(netInstallment),
+        currentMonthGain: Math.round(currentMonthGain),
+        cumulativeInvestment: Math.round(netInvestedAmount),
+        cumulativeAccumulated: Math.round(currentAccumulated),
       });
     }
 
@@ -85,15 +89,17 @@ export class SipCalculatorService {
         timePeriod,
       );
     return {
-      totalInvestedAmount,
-      totalExpenses,
-      netInvestedAmount, // Include net invested amount
-      totalGain,
-      totalAccumulated,
-      inflationAdjustedAccumulated,
+      totalInvestedAmount: Math.round(totalInvestedAmount),
+      totalExpenses: Math.round(totalExpenses),
+      netInvestedAmount: Math.round(netInvestedAmount), // Include net invested amount
+      totalGain: Math.round(totalGain),
+      totalAccumulated: Math.round(totalAccumulated),
+      inflationAdjustedAccumulated: Math.round(inflationAdjustedAccumulated),
       taxApplicable,
-      corpusAfterTax,
-      inflationAdjustedCorpusAfterTax,
+      corpusAfterTax: Math.round(corpusAfterTax),
+      inflationAdjustedCorpusAfterTax: Math.round(
+        inflationAdjustedCorpusAfterTax,
+      ),
       monthlyBalanceSheet: monthlyBalances,
     };
   }
@@ -127,8 +133,8 @@ export class SipCalculatorService {
       timePeriod <= 1 ? (totalGain * shortTermCapitalGain) / 100 : 0;
 
     return {
-      longTermTax,
-      shortTermTax,
+      longTermTax: Math.round(longTermTax),
+      shortTermTax: Math.round(shortTermTax),
     };
   }
 
